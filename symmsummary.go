@@ -90,29 +90,13 @@ func (cmd *Worker) Run() {
 	check("Command: \""+cmd.Command+" "+cmd.Args+"\" ", err)
 }
 
-func main() {
-	fileName := "symapi_db.bin"
-	os.Setenv("SYMCLI_OFFLINE", "1")
-	os.Setenv("SYMCLI_DB_FILE", fileName)
-
-	requiredVersion := "V7.4.0"
-	//diskexe := locateFile("symdisk.exe")
-	cfgexe := locateFile("symcfg.exe")
-	version := getVersion(cfgexe)
-	if requiredVersion > version {
-		log.Fatal(requiredVersion + " is required. Installed version is " + version)
-	}
-
-	listch := make(chan string)
-
-	fmt.Println("-------------Symm--------------")
-
+func getSymmList(cmd string, listch chan string) {
 	label := regexp.MustCompile("(DMX|VMAX)")
-
+	c := make(chan string)
 	arrays := make(map[string]Array)
-	getSymList := &Worker{Command: cfgexe, Args: "list", Output: listch}
+	getSymList := &Worker{Command: cmd, Args: "list", Output: c}
 	go getSymList.Run()
-	for output := range listch {
+	for output := range getSymList.Output {
 		if label.MatchString(output) == true {
 			arrayData := strings.Fields(output)
 			cacheInt, err := strconv.Atoi(arrayData[4])
@@ -129,20 +113,48 @@ func main() {
 				cache:   cacheInt,
 				devs:    devsInt,
 				symdevs: symdevsInt}
-
 			break
 		}
 	}
 
 	for _, a := range arrays {
-		fmt.Printf("Serial Number: %s	Model: %s	Microcode: %s	Cache: %d\n", a.sid, a.model, a.mcode, a.cache)
+		listch <- fmt.Sprintf("Serial Number: %s	Model: %s	Microcode: %s	Cache: %d\n", a.sid, a.model, a.mcode, a.cache)
 	}
+}
+
+func getMemory(cmd string, out chan string) {
+	c := make(chan string)
+	getMemory := &Worker{Command: cmd, Args: "list -memory", Output: c}
+	go getMemory.Run()
+	for output := range getMemory.Output {
+		fmt.Println("getMemory(): " + output)
+		out <- output
+	}
+
+	close(out)
+}
+func main() {
+	fileName := "symapi_db.bin"
+	os.Setenv("SYMCLI_OFFLINE", "1")
+	os.Setenv("SYMCLI_DB_FILE", fileName)
+
+	requiredVersion := "V7.4.0"
+	//diskexe := locateFile("symdisk.exe")
+	cfgexe := locateFile("symcfg.exe")
+	version := getVersion(cfgexe)
+	if requiredVersion > version {
+		log.Fatal(requiredVersion + " is required. Installed version is " + version)
+	}
+
+	//listch := make(chan string)
 	memch := make(chan string)
 
+	//go getSymmList(cfgexe, listch)
+	go getMemory(cfgexe, memch)
+	//fmt.Println("-------------Symm--------------")
+	//val:=<-listch
+	//fmt.Printf("%s\n",val)
 	fmt.Println("-------------Memory--------------")
-	getMemory := &Worker{Command: cfgexe, Args: "list -memory", Output: memch}
-	go getMemory.Run()
-	for output := range memch {
-		fmt.Println(output)
-	}
+	val:=<-memch
+	fmt.Printf("%s\n", val)
 }
