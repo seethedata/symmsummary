@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"bufio"
 )
 
 func check(function string, e error) {
@@ -268,8 +269,7 @@ func main() {
 	if requiredVersion > version {
 		log.Fatal(requiredVersion + " is required. Installed version is " + version)
 	}
-
-	//software := getSoftware(cfgexe)
+	
 	sids := make(map[string]bool)
 
 	fmt.Println("-------------Symm--------------")
@@ -298,8 +298,8 @@ func main() {
 	for pools := range getPools(cfgexe, sids) {
 		fmt.Printf("%s\n", pools)
 	}
-	/*fmt.Println("-------------Software (Experimental - May not be accurate)--------------")
-	for output := range software {
-		fmt.Printf("%s\n", output)
-	}*/
+	fmt.Printf("%s","Press any key to exit...")
+	pause:=bufio.NewReader(os.Stdin)
+	_, _, _=pause.ReadLine()
+
 }
